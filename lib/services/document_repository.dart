@@ -71,6 +71,16 @@ class DocumentRepository extends ChangeNotifier {
     _storageDirectory = dir;
   }
 
+  Future<void> replaceAll(List<PetDocument> documents) async {
+    await _ensureInitialized();
+    _documents = List.of(documents);
+    if (kDebugMode) {
+      debugPrint('DocumentRepository.replaceAll -> count: ' + _documents.length.toString());
+    }
+    await _save();
+    notifyListeners();
+  }
+
   Future<List<PetDocument>> documentsForPet(String petId) async {
     await _ensureInitialized();
     final list = _documents.where((doc) => doc.petId == petId).toList()

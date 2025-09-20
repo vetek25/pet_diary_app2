@@ -1,22 +1,63 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import "package:flutter/material.dart";
+import "package:flutter/foundation.dart";
 import "package:fl_chart/fl_chart.dart";
+import "package:open_filex/open_filex.dart";
 import 'package:intl/intl.dart';
 import "package:provider/provider.dart";
 
 import "../l10n/app_localizations.dart";
 import "../models/pet.dart";
 import "../models/reminder.dart";
+import "../models/pet_document.dart";
 import "../models/weight_entry.dart";
 import "../services/pet_repository.dart";
 import "../services/reminder_repository.dart";
+import "../services/document_repository.dart";
 import "../services/weight_repository.dart";
 import "add_pet_screen.dart";
 import "reminder_form_sheet.dart";
+import "documents_screen.dart";
 
 class PetCardScreen extends StatelessWidget {
   const PetCardScreen({super.key});
+  Future<void> _openDocument(BuildContext context, PetDocument document) async {
+    final l10n = context.l10n;
+    if (document.isNote) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(document.title),
+            content: SingleChildScrollView(child: Text(document.note ?? '')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(l10n.actionClose),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+    final filePath = document.filePath;
+    if (filePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.documentsFileNotAccessible)),
+      );
+      return;
+    }
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.documentsWebUnsupported)),
+      );
+      return;
+    }
+    await OpenFilex.open(filePath);
+  }
 
   static const routeName = "/pet";
 
@@ -51,6 +92,13 @@ class PetCardScreen extends StatelessWidget {
     final timeline = _buildTimeline(pet, l10n);
     final petNote = pet.note(l10n);
     final reminders = reminderRepository.remindersForPet(pet.id);
+    final documents = context.select<DocumentRepository, List<PetDocument>>((repo) {
+      final list = repo.documents.where((doc) => doc.petId == pet.id).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
+
+    const documentPreviewLimit = 3;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -94,6 +142,55 @@ class PetCardScreen extends StatelessWidget {
                   _OverviewCard(pet: pet),
                   const SizedBox(height: 24),
                   _WeightTrendSection(pet: pet),
+                  const SizedBox(height: 24),
+                  Text(
+                    l10n.documentsTitle,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  if (documents.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Text(
+                        l10n.documentsEmptyForPet,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    )
+                  else
+                    Column(
+                      children: documents
+                          .take(documentPreviewLimit)
+                          .map(
+                            (doc) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _DocumentPreviewTile(
+                                document: doc,
+                                onTap: () => _openDocument(context, doc),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          DocumentsScreen.routeName,
+                          arguments: pet.id,
+                        );
+                      },
+                      icon: const Icon(Icons.open_in_new),
+                      label: Text(l10n.documentsViewAll),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   if (petNote != null && petNote.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     Text(
@@ -889,6 +986,153 @@ class _OverviewRow extends StatelessWidget {
   }
 }
 
+class _DocumentPreviewTile extends StatelessWidget {
+  const _DocumentPreviewTile({required this.document, required this.onTap});
+
+  final PetDocument document;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final subtitle = _buildSubtitle(l10n);
+    final dateLabel =
+        l10n.formatFullDate(document.updatedAt ?? document.createdAt);
+    final secondaryTextColor =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            theme.colorScheme.onSurface.withOpacity(0.6);
+
+    Widget leading;
+    if (document.isImage && document.filePath != null && !kIsWeb) {
+      final file = File(document.filePath!);
+      if (file.existsSync()) {
+        leading = ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Image.file(
+            file,
+            width: 64,
+            height: 64,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildIconPlaceholder(
+              colorScheme.primary,
+              Icons.image_outlined,
+            ),
+          ),
+        );
+      } else {
+        leading = _buildIconPlaceholder(
+          colorScheme.primary,
+          Icons.image_outlined,
+        );
+      }
+    } else {
+      leading = _buildIconPlaceholder(
+        colorScheme.primary,
+        document.isNote
+            ? Icons.sticky_note_2_outlined
+            : Icons.insert_drive_file_outlined,
+      );
+    }
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              leading,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      document.title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                            color: secondaryTextColor,
+                          ) ??
+                          TextStyle(color: secondaryTextColor),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      dateLabel,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(
+                Icons.chevron_right,
+                color: colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _buildSubtitle(AppLocalizations l10n) {
+    if (document.isNote) {
+      final note = document.note?.trim();
+      if (note == null || note.isEmpty) {
+        return l10n.documentsNoteContentLabel;
+      }
+      final snippet = note
+          .split("\n")
+          .map((line) => line.trim())
+          .firstWhere((line) => line.isNotEmpty, orElse: () => "");
+      return snippet.isEmpty ? l10n.documentsNoteContentLabel : snippet;
+    }
+    final originalName = document.originalFileName;
+    if (originalName != null && originalName.trim().isNotEmpty) {
+      return originalName;
+    }
+    final ext = document.extension;
+    if (ext != null && ext.isNotEmpty) {
+      return ext.toUpperCase();
+    }
+    return document.title;
+  }
+
+  Widget _buildIconPlaceholder(Color accentColor, IconData icon) {
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: accentColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Icon(icon, color: accentColor, size: 28),
+    );
+  }
+}
+
 class _TimelineTile extends StatelessWidget {
   const _TimelineTile({required this.event, required this.accentColor});
 
@@ -966,3 +1210,6 @@ IconData _iconForReminderType(String type) {
       return Icons.event_note;
   }
 }
+
+
+

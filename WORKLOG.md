@@ -125,3 +125,8 @@
 - Splash gate now initializes pet, reminder, and notification settings repositories along with the notification service before unveiling login.
 - Localizations expanded for all new strings (recurrence, notification settings, channel descriptions) in English, Russian, and Ukrainian.
 
+## 2025-09-20 – Auth groundwork without breaking guest mode
+- Kept the legacy guest-only flow intact: login button still navigates directly to the dashboard, profile editing remains local-only for unauthenticated users.
+- Added but disabled new backend wiring (ApiClient, AuthRepository, SyncService, register/verify screens) so future email auth work has a foundation.
+- Hooked login UI buttons back up (Create an account, Continue as guest), cleaned profile/avatar editing to show proper guest restrictions and avoid crashes.
+- Deferred actual API calls and removed provider dependencies for now; backend integration planned as next step.

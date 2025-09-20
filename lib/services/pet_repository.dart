@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import 'package:flutter/foundation.dart';
 import "package:hive/hive.dart";
 
 import "../models/pet.dart";
@@ -82,6 +83,16 @@ class PetRepository extends ChangeNotifier {
 
   Future<bool> addPet(Pet pet) => savePet(pet);
 
+  Future<void> replaceAll(List<Pet> pets) async {
+    await _ensureInitialized();
+    _pets = List.of(pets);
+    if (kDebugMode) {
+      debugPrint('PetRepository.replaceAll -> count: ' + _pets.length.toString());
+    }
+    await _save();
+    notifyListeners();
+  }
+
   Future<void> removePet(String id) async {
     await _ensureInitialized();
     final updated = _pets.where((pet) => pet.id != id).toList();
@@ -113,10 +124,7 @@ class PetRepository extends ChangeNotifier {
   }
 
   Future<void> _save() async {
-    await _box.put(
-      _petsKey,
-      _pets.map((pet) => pet.toStorage()).toList(),
-    );
+    await _box.put(_petsKey, _pets.map((pet) => pet.toStorage()).toList());
   }
 
   @override
@@ -127,5 +135,3 @@ class PetRepository extends ChangeNotifier {
     super.dispose();
   }
 }
-
-

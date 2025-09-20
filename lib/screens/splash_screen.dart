@@ -6,8 +6,11 @@ import "../services/pet_repository.dart";
 import "../services/reminder_repository.dart";
 import "../services/document_repository.dart";
 import "../services/weight_repository.dart";
+import "../services/user_repository.dart";
 import "../services/notification_settings_repository.dart";
 import "../services/notification_service.dart";
+import "../services/auth_repository.dart";
+import "dashboard_screen.dart";
 import "login_screen.dart";
 
 class SplashGate extends StatefulWidget {
@@ -32,6 +35,7 @@ class _SplashGateState extends State<SplashGate> {
     final documentRepository = context.read<DocumentRepository>();
     final weightRepository = context.read<WeightRepository>();
     final settingsRepository = context.read<NotificationSettingsRepository>();
+    final userRepository = context.read<UserRepository>();
     final notificationService = context.read<NotificationService>();
     _loadingFuture = _initialize(
       petRepository,
@@ -40,6 +44,7 @@ class _SplashGateState extends State<SplashGate> {
       weightRepository,
       settingsRepository,
       notificationService,
+      userRepository,
     );
     _initialized = true;
   }
@@ -51,6 +56,7 @@ class _SplashGateState extends State<SplashGate> {
     WeightRepository weightRepository,
     NotificationSettingsRepository settingsRepository,
     NotificationService notificationService,
+    UserRepository userRepository,
   ) async {
     await Future.wait([
       petRepository.init(),
@@ -58,6 +64,7 @@ class _SplashGateState extends State<SplashGate> {
       documentRepository.init(),
       weightRepository.init(),
       settingsRepository.init(),
+      userRepository.init(),
     ]);
     await notificationService.init();
     await Future.delayed(const Duration(seconds: 3));
@@ -69,6 +76,10 @@ class _SplashGateState extends State<SplashGate> {
       future: _loadingFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
+          final auth = context.watch<AuthRepository>();
+          if (auth.isAuthenticated) {
+            return const DashboardScreen();
+          }
           return const LoginScreen();
         }
         return const SplashScreen();

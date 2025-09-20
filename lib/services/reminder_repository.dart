@@ -1,4 +1,5 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
+import 'package:flutter/foundation.dart';
 import "package:hive/hive.dart";
 
 import "../models/reminder.dart";
@@ -24,7 +25,9 @@ class ReminderRepository extends ChangeNotifier {
     _box = await Hive.openBox(_boxName);
     _reminders = (_box.get(_itemsKey) as List? ?? [])
         .whereType<Map>()
-        .map((raw) => Reminder.fromStorage(Map<String, dynamic>.from(raw as Map)))
+        .map(
+          (raw) => Reminder.fromStorage(Map<String, dynamic>.from(raw as Map)),
+        )
         .toList();
 
     if (_reminders.isEmpty) {
@@ -46,7 +49,9 @@ class ReminderRepository extends ChangeNotifier {
       return const [];
     }
     final now = DateTime.now();
-    final list = _reminders.where((reminder) => reminder.petId == petId).toList();
+    final list = _reminders
+        .where((reminder) => reminder.petId == petId)
+        .toList();
     list.sort((a, b) {
       final aNext = a.nextOccurrence(now) ?? a.dateTime;
       final bNext = b.nextOccurrence(now) ?? b.dateTime;
@@ -69,6 +74,16 @@ class ReminderRepository extends ChangeNotifier {
     }
     entries.sort((a, b) => a.occurrence.compareTo(b.occurrence));
     return entries.take(limit).toList();
+  }
+
+  Future<void> replaceAll(List<Reminder> reminders) async {
+    await _ensureInitialized();
+    _reminders = List.of(reminders);
+    if (kDebugMode) {
+      debugPrint('ReminderRepository.replaceAll -> count: ' + _reminders.length.toString());
+    }
+    await _save();
+    notifyListeners();
   }
 
   Future<void> upsert(Reminder reminder) async {
@@ -130,10 +145,7 @@ class ReminderRepository extends ChangeNotifier {
   }
 
   Future<void> _save() async {
-    await _box.put(
-      _itemsKey,
-      _reminders.map((r) => r.toStorage()).toList(),
-    );
+    await _box.put(_itemsKey, _reminders.map((r) => r.toStorage()).toList());
   }
 
   @override

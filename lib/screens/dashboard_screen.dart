@@ -1,3 +1,6 @@
+﻿import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 
@@ -6,12 +9,14 @@ import "../models/pet.dart";
 import "../models/reminder.dart";
 import "../services/pet_repository.dart";
 import "../services/reminder_repository.dart";
+import "../services/user_repository.dart";
 import "../widgets/pet_card.dart";
 import "add_pet_screen.dart";
 import "documents_screen.dart";
 import "pet_card_screen.dart";
+import "profile_screen.dart";
 import "reminder_form_sheet.dart";
-import "notification_settings_screen.dart";
+import "user_settings_screen.dart";
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -25,9 +30,16 @@ class DashboardScreen extends StatelessWidget {
     final l10n = context.l10n;
     final petRepository = context.watch<PetRepository>();
     final reminderRepository = context.watch<ReminderRepository>();
+    final userRepository = context.watch<UserRepository>();
 
     final pets = petRepository.pets;
     final reminders = reminderRepository.reminders;
+    final profile = userRepository.profile;
+    final greetingName = profile.displayName;
+    final hasAvatar =
+        !kIsWeb &&
+        profile.avatarPath != null &&
+        File(profile.avatarPath!).existsSync();
 
     final quickActions = <_QuickActionData>[
       _QuickActionData(
@@ -102,12 +114,36 @@ class DashboardScreen extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: colorScheme.secondary.withOpacity(0.2),
-                    child: Icon(
-                      Icons.person_outline,
-                      color: colorScheme.secondary,
+                  InkWell(
+                    onTap: () =>
+                        Navigator.pushNamed(context, ProfileScreen.routeName),
+                    borderRadius: BorderRadius.circular(36),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundColor: colorScheme.secondary.withOpacity(0.2),
+                        backgroundImage: hasAvatar
+                            ? FileImage(File(profile.avatarPath!))
+                            : null,
+                        child: hasAvatar
+                            ? null
+                            : Icon(
+                                Icons.person_outline,
+                                color: colorScheme.secondary,
+                              ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -116,7 +152,7 @@ class DashboardScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.greeting("Alex"),
+                          l10n.greeting(greetingName),
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -132,8 +168,11 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () {}, // временно заглушка
-                    icon: const Icon(Icons.notifications_active_outlined),
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      UserSettingsScreen.routeName,
+                    ),
+                    icon: const Icon(Icons.settings_outlined),
                   ),
                 ],
               ),
@@ -246,7 +285,7 @@ class DashboardScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "$formattedDate · $formattedTime · ${pet.name}",
+                                    "$formattedDate \u00b7 $formattedTime \u00b7 ${pet.name}",
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),

@@ -53,6 +53,22 @@ class WeightRepository extends ChangeNotifier {
     return entries == null ? const [] : List.unmodifiable(entries);
   }
 
+  Future<void> replaceAll(Map<String, List<WeightEntry>> entries) async {
+    await _ensureInitialized();
+    _entries
+      ..clear()
+      ..addAll(
+        entries.map(
+          (key, value) => MapEntry(key, List<WeightEntry>.from(value)),
+        ),
+      );
+    if (kDebugMode) {
+      debugPrint('WeightRepository.replaceAll -> keys: ' + _entries.length.toString());
+    }
+    await _save();
+    notifyListeners();
+  }
+
   Future<void> addEntry(String petId, WeightEntry entry) async {
     await _ensureInitialized();
     final updated = [..._entries[petId] ?? const <WeightEntry>[]];
@@ -76,6 +92,14 @@ class WeightRepository extends ChangeNotifier {
     _entries[petId] = updated;
     await _save();
     notifyListeners();
+  }
+
+  Map<String, List<Map<String, dynamic>>> exportStorageMap() {
+    final map = <String, List<Map<String, dynamic>>>{};
+    for (final entry in _entries.entries) {
+      map[entry.key] = entry.value.map((weight) => weight.toStorage()).toList();
+    }
+    return map;
   }
 
   Future<void> _save() async {

@@ -25,6 +25,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   String? _selectedPetId;
   bool _isPicking = false;
   bool _petsInitialized = false;
+  String? _initialRoutePetId;
 
   static const _imageExtensions = {"jpg", "jpeg", "png", "heic"};
   static const _fileExtensions = {
@@ -41,10 +42,24 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final pets = context.read<PetRepository>().pets;
+    if (_initialRoutePetId == null) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String) {
+        _initialRoutePetId = args;
+      }
+    }
     if (!_petsInitialized) {
       _petsInitialized = true;
       if (pets.isNotEmpty) {
-        _selectedPetId = pets.first.id;
+        final initialPetId = _initialRoutePetId;
+        if (initialPetId != null &&
+            pets.any((pet) => pet.id == initialPetId)) {
+          _selectedPetId = initialPetId;
+        } else {
+          _selectedPetId = pets.first.id;
+        }
+      } else {
+        _selectedPetId = null;
       }
       return;
     }

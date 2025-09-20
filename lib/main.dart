@@ -2,13 +2,18 @@ import "package:flutter/material.dart";
 import "package:flutter_localizations/flutter_localizations.dart";
 import "package:hive_flutter/hive_flutter.dart";
 import "package:provider/provider.dart";
+import "package:flutter_secure_storage/flutter_secure_storage.dart";
 
 import "l10n/app_localizations.dart";
 import "screens/add_pet_screen.dart";
 import "screens/dashboard_screen.dart";
 import "screens/documents_screen.dart";
+import "screens/profile_screen.dart";
+import "screens/profile_edit_screen.dart";
+import "screens/user_settings_screen.dart";
+import "screens/help_screen.dart";
+import "screens/agreements_screen.dart";
 import "screens/login_screen.dart";
-import "screens/notification_settings_screen.dart";
 import "screens/pet_card_screen.dart";
 import "screens/splash_screen.dart";
 import "services/document_repository.dart";
@@ -17,6 +22,10 @@ import "services/notification_settings_repository.dart";
 import "services/pet_repository.dart";
 import "services/reminder_repository.dart";
 import "services/weight_repository.dart";
+import "services/user_repository.dart";
+import "services/api_client.dart";
+import "services/auth_repository.dart";
+import "services/sync_service.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +41,34 @@ Future<void> main() async {
     settings: settingsRepository,
   );
 
+  final userRepository = UserRepository();
+  final systemLocale = WidgetsBinding.instance.platformDispatcher.locale;
+  userRepository.prefillLocale(systemLocale, AppLocalizations.supportedLocales);
+
+  final apiClient = ApiClient(baseUrl: "http://176.114.3.41");
+  final syncService = SyncService(
+    apiClient: apiClient,
+    userRepository: userRepository,
+    notificationSettingsRepository: settingsRepository,
+    petRepository: petRepository,
+    reminderRepository: reminderRepository,
+    documentRepository: documentRepository,
+    weightRepository: weightRepository,
+  );
+  final authRepository = AuthRepository(
+    apiClient: apiClient,
+    secureStorage: const FlutterSecureStorage(),
+    userRepository: userRepository,
+    notificationSettingsRepository: settingsRepository,
+    petRepository: petRepository,
+    reminderRepository: reminderRepository,
+    documentRepository: documentRepository,
+    weightRepository: weightRepository,
+    syncService: syncService,
+  );
+
+  await authRepository.init();
+
   runApp(
     PetDiaryApp(
       petRepository: petRepository,
@@ -40,6 +77,10 @@ Future<void> main() async {
       documentRepository: documentRepository,
       settingsRepository: settingsRepository,
       notificationService: notificationService,
+      userRepository: userRepository,
+      apiClient: apiClient,
+      authRepository: authRepository,
+      syncService: syncService,
     ),
   );
 }
@@ -53,6 +94,10 @@ class PetDiaryApp extends StatelessWidget {
     required this.documentRepository,
     required this.settingsRepository,
     required this.notificationService,
+    required this.userRepository,
+    required this.apiClient,
+    required this.authRepository,
+    required this.syncService,
   });
 
   final PetRepository petRepository;
@@ -61,6 +106,10 @@ class PetDiaryApp extends StatelessWidget {
   final DocumentRepository documentRepository;
   final NotificationSettingsRepository settingsRepository;
   final NotificationService notificationService;
+  final UserRepository userRepository;
+  final ApiClient apiClient;
+  final AuthRepository authRepository;
+  final SyncService syncService;
 
   @override
   Widget build(BuildContext context) {
@@ -96,107 +145,130 @@ class PetDiaryApp extends StatelessWidget {
         ChangeNotifierProvider<NotificationService>.value(
           value: notificationService,
         ),
+        Provider<ApiClient>.value(value: apiClient),
+        Provider<SyncService>.value(value: syncService),
+        ChangeNotifierProvider<AuthRepository>.value(value: authRepository),
+        ChangeNotifierProvider<UserRepository>.value(value: userRepository),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        onGenerateTitle: (context) => context.l10n.appTitle,
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: AppLocalizations.supportedLocales,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: colorScheme,
-          scaffoldBackgroundColor: colorScheme.background,
-          textTheme: baseTextTheme.copyWith(
-            headlineSmall: baseTextTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: primaryTextColor,
-            ),
-            titleLarge: baseTextTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: primaryTextColor,
-            ),
-            bodyLarge: baseTextTheme.bodyLarge?.copyWith(
-              color: secondaryTextColor,
-            ),
-            bodyMedium: baseTextTheme.bodyMedium?.copyWith(
-              color: secondaryTextColor,
-            ),
-            labelLarge: baseTextTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          appBarTheme: AppBarTheme(
-            backgroundColor: Colors.transparent,
-            foregroundColor: primaryTextColor,
-            elevation: 0,
-            centerTitle: true,
-            titleTextStyle: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: primaryTextColor,
-            ),
-          ),
-          cardTheme: CardThemeData(
-            color: Colors.white,
-            elevation: 3,
-            shadowColor: Colors.black12,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(28),
-            ),
-            margin: EdgeInsets.zero,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+      child: Builder(
+        builder: (context) {
+          final locale = context.watch<UserRepository>().locale;
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            onGenerateTitle: (context) => context.l10n.appTitle,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: locale,
+            theme: ThemeData(
+              useMaterial3: true,
+              colorScheme: colorScheme,
+              scaffoldBackgroundColor: colorScheme.background,
+              textTheme: baseTextTheme.copyWith(
+                headlineSmall: baseTextTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: primaryTextColor,
+                ),
+                titleLarge: baseTextTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: primaryTextColor,
+                ),
+                bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+                  color: secondaryTextColor,
+                ),
+                bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+                  color: secondaryTextColor,
+                ),
+                labelLarge: baseTextTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              appBarTheme: AppBarTheme(
+                backgroundColor: Colors.transparent,
+                foregroundColor: primaryTextColor,
+                elevation: 0,
+                centerTitle: true,
+                titleTextStyle: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: primaryTextColor,
+                ),
+              ),
+              cardTheme: CardThemeData(
+                color: Colors.white,
+                elevation: 3,
+                shadowColor: Colors.black12,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                margin: EdgeInsets.zero,
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              floatingActionButtonTheme: FloatingActionButtonThemeData(
+                backgroundColor: colorScheme.secondary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              inputDecorationTheme: InputDecorationTheme(
+                filled: true,
+                fillColor: Colors.white,
+                hintStyle: TextStyle(
+                  color: secondaryTextColor.withOpacity(0.55),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(22),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
-          ),
-          floatingActionButtonTheme: FloatingActionButtonThemeData(
-            backgroundColor: colorScheme.secondary,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.white,
-            hintStyle: TextStyle(color: secondaryTextColor.withOpacity(0.55)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(22),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        home: const SplashGate(),
-        routes: {
-          LoginScreen.routeName: (context) => const LoginScreen(),
-          DashboardScreen.routeName: (context) => const DashboardScreen(),
-          DocumentsScreen.routeName: (context) => const DocumentsScreen(),
-          PetCardScreen.routeName: (context) => const PetCardScreen(),
-          AddPetScreen.routeName: (context) {
-            final args =
-                ModalRoute.of(context)?.settings.arguments as AddPetScreenArgs?;
-            return AddPetScreen(petId: args?.petId);
-          },
+            home: const SplashGate(),
+            routes: {
+              LoginScreen.routeName: (context) => const LoginScreen(),
+              DashboardScreen.routeName: (context) => const DashboardScreen(),
+              DocumentsScreen.routeName: (context) => const DocumentsScreen(),
+              PetCardScreen.routeName: (context) => const PetCardScreen(),
+              ProfileScreen.routeName: (context) => const ProfileScreen(),
+              ProfileEditScreen.routeName: (context) =>
+                  const ProfileEditScreen(),
+              UserSettingsScreen.routeName: (context) =>
+                  const UserSettingsScreen(),
+              HelpScreen.routeName: (context) => const HelpScreen(),
+              AgreementsScreen.routeName: (context) => const AgreementsScreen(),
+              AddPetScreen.routeName: (context) {
+                final args =
+                    ModalRoute.of(context)?.settings.arguments
+                        as AddPetScreenArgs?;
+                return AddPetScreen(petId: args?.petId);
+              },
+            },
+          );
         },
       ),
     );

@@ -70,6 +70,7 @@ class AppLocalizations {
       "documents.emptyState":
           "Upload examinations, lab results, or notes for this pet.",
       "documents.addFirst": "Upload document",
+      "documents.emptyForPet": "No documents yet. Upload them from the documents center.",
       "documents.petLabel": "Pet",
       "documents.supportedFormats.title": "Supported formats",
       "documents.supportedFormats.imagesHeader": "Images:",
@@ -100,6 +101,7 @@ class AppLocalizations {
           "Keep medical records, analyses, and notes tidy.",
       "documents.quickUpload": "Upload file",
       "documents.quickNote": "Write note",
+      "documents.viewAll": "View all documents",
       "documents.sectionLibrary": "Document library",
       "documents.emptyTitle": "No documents yet",
       "documents.emptySubtitle":
@@ -1030,6 +1032,8 @@ class AppLocalizations {
 
   String get documentsAddFile => _translate("documents.addFile");
   String get documentsAddNote => _translate("documents.addNote");
+  String get documentsViewAll => _translate("documents.viewAll");
+  String get documentsEmptyForPet => _translate("documents.emptyForPet");
   String get documentsFileNotAccessible =>
       _translate("documents.fileNotAccessible");
   String documentsPickError(Object error) => _translate(
