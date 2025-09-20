@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 
 import "../l10n/app_localizations.dart";
@@ -8,6 +8,7 @@ import "../services/pet_repository.dart";
 import "../services/reminder_repository.dart";
 import "../widgets/pet_card.dart";
 import "add_pet_screen.dart";
+import "documents_screen.dart";
 import "pet_card_screen.dart";
 import "reminder_form_sheet.dart";
 import "notification_settings_screen.dart";
@@ -34,6 +35,15 @@ class DashboardScreen extends StatelessWidget {
         titleKey: "addDocument",
         subtitleKey: "addDocument",
         color: colorScheme.secondary,
+        onTap: () {
+          if (pets.isEmpty) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(l10n.documentsNoPets)));
+            return;
+          }
+          Navigator.pushNamed(context, DocumentsScreen.routeName);
+        },
       ),
       _QuickActionData(
         icon: Icons.vaccines_outlined,
@@ -48,9 +58,9 @@ class DashboardScreen extends StatelessWidget {
         color: colorScheme.primary,
         onTap: () {
           if (pets.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.reminderNoPetsYet)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(l10n.reminderNoPetsYet)));
             return;
           }
           showModalBottomSheet<void>(
@@ -71,11 +81,13 @@ class DashboardScreen extends StatelessWidget {
 
     final upcomingEntries = reminderRepository
         .upcomingReminders(limit: 4)
-        .map((occurrence) => _ReminderEntry(
-              reminder: occurrence.reminder,
-              occurrence: occurrence.occurrence,
-              pet: petRepository.findPetById(occurrence.reminder.petId),
-            ))
+        .map(
+          (occurrence) => _ReminderEntry(
+            reminder: occurrence.reminder,
+            occurrence: occurrence.occurrence,
+            pet: petRepository.findPetById(occurrence.reminder.petId),
+          ),
+        )
         .where((entry) => entry.pet != null)
         .cast<_ReminderEntry>()
         .toList();
@@ -119,20 +131,14 @@ class DashboardScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                 IconButton(
-                 onPressed: () {}, // временно заглушка
-                 icon: const Icon(Icons.notifications_active_outlined),
-      ),
-      
-
-
+                  IconButton(
+                    onPressed: () {}, // временно заглушка
+                    icon: const Icon(Icons.notifications_active_outlined),
+                  ),
                 ],
               ),
               const SizedBox(height: 28),
-              Text(
-                l10n.dashboardBuddies,
-                style: theme.textTheme.titleLarge,
-              ),
+              Text(l10n.dashboardBuddies, style: theme.textTheme.titleLarge),
               const SizedBox(height: 16),
               SizedBox(
                 height: 360,
@@ -173,7 +179,9 @@ class DashboardScreen extends StatelessWidget {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: quickActions.map((data) => _QuickActionCard(data: data)).toList(),
+                children: quickActions
+                    .map((data) => _QuickActionCard(data: data))
+                    .toList(),
               ),
               const SizedBox(height: 32),
               Text(
@@ -197,14 +205,21 @@ class DashboardScreen extends StatelessWidget {
               else
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                     child: Column(
                       children: upcomingEntries.map((entry) {
                         final isLast = entry == upcomingEntries.last;
                         final reminder = entry.reminder;
                         final pet = entry.pet!;
-                        final formattedDate = l10n.formatReminderDate(entry.occurrence);
-                        final formattedTime = l10n.formatReminderTime(entry.occurrence);
+                        final formattedDate = l10n.formatReminderDate(
+                          entry.occurrence,
+                        );
+                        final formattedTime = l10n.formatReminderTime(
+                          entry.occurrence,
+                        );
                         final summary = reminder.recurrenceSummary(l10n);
                         return Column(
                           children: [
@@ -272,11 +287,15 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  static void _openAddPet(BuildContext context, PetRepository repository, AppLocalizations l10n) {
+  static void _openAddPet(
+    BuildContext context,
+    PetRepository repository,
+    AppLocalizations l10n,
+  ) {
     if (!repository.canAddMorePets) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.addPetLimitReached)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.addPetLimitReached)));
       return;
     }
     Navigator.pushNamed(
@@ -318,10 +337,7 @@ class _QuickActionCard extends StatelessWidget {
                   color: data.color.withOpacity(0.18),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  data.icon,
-                  color: data.color,
-                ),
+                child: Icon(data.icon, color: data.color),
               ),
               const SizedBox(height: 14),
               Text(
@@ -362,7 +378,11 @@ class _QuickActionData {
 }
 
 class _ReminderEntry {
-  const _ReminderEntry({required this.pet, required this.reminder, required this.occurrence});
+  const _ReminderEntry({
+    required this.pet,
+    required this.reminder,
+    required this.occurrence,
+  });
 
   final Pet? pet;
   final Reminder reminder;

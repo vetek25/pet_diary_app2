@@ -1,11 +1,17 @@
-﻿import "package:flutter/material.dart";
+import 'dart:math' as math;
+
+import "package:flutter/material.dart";
+import "package:fl_chart/fl_chart.dart";
+import 'package:intl/intl.dart';
 import "package:provider/provider.dart";
 
 import "../l10n/app_localizations.dart";
 import "../models/pet.dart";
 import "../models/reminder.dart";
+import "../models/weight_entry.dart";
 import "../services/pet_repository.dart";
 import "../services/reminder_repository.dart";
+import "../services/weight_repository.dart";
 import "add_pet_screen.dart";
 import "reminder_form_sheet.dart";
 
@@ -29,7 +35,9 @@ class PetCardScreen extends StatelessWidget {
 
     final petRepository = context.watch<PetRepository>();
     final reminderRepository = context.watch<ReminderRepository>();
-    final pet = petId != null ? petRepository.findPetById(petId!) ?? initialPet : initialPet;
+    final pet = petId != null
+        ? petRepository.findPetById(petId!) ?? initialPet
+        : initialPet;
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
@@ -84,6 +92,8 @@ class PetCardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _OverviewCard(pet: pet),
+                  const SizedBox(height: 24),
+                  _WeightTrendSection(pet: pet),
                   if (petNote != null && petNote.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     Text(
@@ -94,10 +104,7 @@ class PetCardScreen extends StatelessWidget {
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(20),
-                        child: Text(
-                          petNote,
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                        child: Text(petNote, style: theme.textTheme.bodyMedium),
                       ),
                     ),
                   ],
@@ -114,9 +121,8 @@ class PetCardScreen extends StatelessWidget {
                           showModalBottomSheet<void>(
                             context: context,
                             isScrollControlled: true,
-                            builder: (context) => ReminderFormSheet(
-                              pets: [pet],
-                            ),
+                            builder: (context) =>
+                                ReminderFormSheet(pets: [pet]),
                           );
                         },
                         icon: const Icon(Icons.add_alarm_outlined),
@@ -142,14 +148,19 @@ class PetCardScreen extends StatelessWidget {
                     Card(
                       child: Column(
                         children: reminders.map((reminder) {
-                          final next = reminder.nextOccurrence(DateTime.now()) ?? reminder.dateTime;
+                          final next =
+                              reminder.nextOccurrence(DateTime.now()) ??
+                              reminder.dateTime;
                           final formattedDate = l10n.formatReminderDate(next);
                           final formattedTime = l10n.formatReminderTime(next);
                           final summary = reminder.recurrenceSummary(l10n);
                           return Column(
                             children: [
                               ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 6,
+                                ),
                                 leading: Container(
                                   width: 44,
                                   height: 44,
@@ -190,7 +201,9 @@ class PetCardScreen extends StatelessWidget {
                                         ),
                                       );
                                     } else if (value == 'delete') {
-                                      context.read<ReminderRepository>().delete(reminder.id);
+                                      context.read<ReminderRepository>().delete(
+                                        reminder.id,
+                                      );
                                     }
                                   },
                                   itemBuilder: (context) => [
@@ -207,7 +220,12 @@ class PetCardScreen extends StatelessWidget {
                               ),
                               if (reminder.notes != null)
                                 Padding(
-                                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    20,
+                                    12,
+                                  ),
                                   child: Align(
                                     alignment: Alignment.centerLeft,
                                     child: Text(
@@ -239,7 +257,10 @@ class PetCardScreen extends StatelessWidget {
                       child: Column(
                         children: timeline
                             .map(
-                              (event) => _TimelineTile(event: event, accentColor: pet.accentColor),
+                              (event) => _TimelineTile(
+                                event: event,
+                                accentColor: pet.accentColor,
+                              ),
                             )
                             .toList(),
                       ),
@@ -302,9 +323,7 @@ class _HeaderSection extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(40),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,11 +334,7 @@ class _HeaderSection extends StatelessWidget {
               CircleAvatar(
                 radius: 36,
                 backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.pets,
-                  size: 34,
-                  color: pet.accentColor,
-                ),
+                child: Icon(Icons.pets, size: 34, color: pet.accentColor),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -351,7 +366,10 @@ class _HeaderSection extends StatelessWidget {
                       children: pet.tagKeys
                           .map(
                             (tag) => Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.18),
                                 borderRadius: BorderRadius.circular(16),
@@ -430,11 +448,7 @@ class _HeaderInfoTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                size: 16,
-                color: Colors.white70,
-              ),
+              Icon(icon, size: 16, color: Colors.white70),
               const SizedBox(width: 6),
               Text(
                 title,
@@ -499,6 +513,330 @@ class _OverviewCard extends StatelessWidget {
   }
 }
 
+class _WeightTrendSection extends StatelessWidget {
+  const _WeightTrendSection({required this.pet});
+
+  final Pet pet;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final weightRepository = context.watch<WeightRepository>();
+    final entries = weightRepository.weightsForPet(pet.id);
+    final dateFormat = DateFormat.yMMMd(l10n.localeName);
+    final latest = entries.isNotEmpty ? entries.last : null;
+
+    final spots = entries
+        .asMap()
+        .entries
+        .map((entry) => FlSpot(entry.key.toDouble(), entry.value.weightKg))
+        .toList();
+
+    double? minY;
+    double? maxY;
+    if (spots.isNotEmpty) {
+      minY = entries.map((e) => e.weightKg).reduce(math.min);
+      maxY = entries.map((e) => e.weightKg).reduce(math.max);
+      final range = (maxY - minY).abs();
+      final padding = range == 0 ? 0.5 : math.max(0.2, range * 0.2);
+      minY = math.max(0, minY - padding);
+      maxY = maxY + padding;
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.monitor_weight_outlined,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.petProfileWeightTrend,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (latest != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          l10n.petProfileWeightLatest(
+                            latest.weightKg.toStringAsFixed(1),
+                            dateFormat.format(latest.date),
+                          ),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            if (entries.isEmpty)
+              Text(
+                l10n.petProfileWeightEmpty,
+                style: theme.textTheme.bodyMedium,
+              )
+            else
+              SizedBox(
+                height: 220,
+                child: LineChart(
+                  LineChartData(
+                    minX: 0,
+                    maxX: spots.length <= 1 ? 1 : (spots.length - 1).toDouble(),
+                    minY: minY ?? 0,
+                    maxY: maxY ?? 1,
+                    lineTouchData: LineTouchData(
+                      handleBuiltInTouches: true,
+                      touchTooltipData: LineTouchTooltipData(
+                        getTooltipItems: (touchedSpots) {
+                          return touchedSpots.map((spot) {
+                            final index = spot.x.round().clamp(
+                              0,
+                              entries.length - 1,
+                            );
+                            final entry = entries[index];
+                            return LineTooltipItem(
+                              '${entry.weightKg.toStringAsFixed(1)} kg\n${dateFormat.format(entry.date)}',
+                              theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ) ??
+                                  const TextStyle(color: Colors.white),
+                            );
+                          }).toList();
+                        },
+                      ),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: theme.dividerColor.withOpacity(0.15),
+                        strokeWidth: 1,
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 44,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              value.toStringAsFixed(1),
+                              style: theme.textTheme.bodySmall,
+                            );
+                          },
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          interval: spots.length <= 1
+                              ? 1
+                              : math
+                                    .max(1, (spots.length - 1) / 3)
+                                    .floorToDouble(),
+                          getTitlesWidget: (value, meta) {
+                            final index = value.round();
+                            if (index < 0 || index >= entries.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                DateFormat.Md(
+                                  l10n.localeName,
+                                ).format(entries[index].date),
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border.all(
+                        color: theme.dividerColor.withOpacity(0.3),
+                      ),
+                    ),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: spots,
+                        isCurved: true,
+                        barWidth: 3,
+                        color: theme.colorScheme.primary,
+                        dotData: FlDotData(show: true),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primary.withOpacity(0.25),
+                              theme.colorScheme.primary.withOpacity(0.05),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 18),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ElevatedButton.icon(
+                onPressed: () => _showAddWeightDialog(context, pet),
+                icon: const Icon(Icons.add_chart_outlined),
+                label: Text(l10n.petProfileAddWeight),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showAddWeightDialog(BuildContext context, Pet pet) async {
+  final l10n = context.l10n;
+  final weightRepository = context.read<WeightRepository>();
+  final petRepository = context.read<PetRepository>();
+  await weightRepository.init();
+  final entries = weightRepository.weightsForPet(pet.id);
+  final latest = entries.isNotEmpty ? entries.last : null;
+  final weightController = TextEditingController(
+    text: (latest?.weightKg ?? pet.weight).toStringAsFixed(1),
+  );
+  DateTime selectedDate = latest?.date ?? DateTime.now();
+  final formKey = GlobalKey<FormState>();
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (dialogContext, setState) {
+          return AlertDialog(
+            title: Text(l10n.petProfileAddWeight),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: weightController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: l10n.petProfileWeightField,
+                    ),
+                    validator: (value) {
+                      final normalized = value?.replaceAll(',', '.');
+                      final parsed = double.tryParse(normalized ?? '');
+                      if (parsed == null || parsed <= 0) {
+                        return l10n.petProfileWeightValidation;
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setState(() => selectedDate = picked);
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_today_outlined),
+                      label: Text(
+                        l10n.petProfileWeightDate(
+                          DateFormat.yMMMd(
+                            l10n.localeName,
+                          ).format(selectedDate),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(l10n.actionCancel),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (formKey.currentState?.validate() ?? false) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                },
+                child: Text(l10n.actionSave),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  if (!context.mounted) {
+    weightController.dispose();
+    return;
+  }
+
+  if (confirmed == true) {
+    final normalized = weightController.text.replaceAll(',', '.');
+    final weightValue = double.parse(normalized);
+    final entry = WeightEntry(
+      date: DateTime(selectedDate.year, selectedDate.month, selectedDate.day),
+      weightKg: weightValue,
+    );
+    await weightRepository.addEntry(pet.id, entry);
+    await petRepository.savePet(pet.copyWith(weight: weightValue));
+  }
+
+  weightController.dispose();
+}
+
 class _OverviewRow extends StatelessWidget {
   const _OverviewRow({
     required this.icon,
@@ -522,10 +860,7 @@ class _OverviewRow extends StatelessWidget {
             color: theme.colorScheme.primary.withOpacity(0.08),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            icon,
-            color: theme.colorScheme.primary,
-          ),
+          child: Icon(icon, color: theme.colorScheme.primary),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -575,25 +910,16 @@ class _TimelineTile extends StatelessWidget {
               color: accentColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              event.icon,
-              color: accentColor,
-            ),
+            child: Icon(event.icon, color: accentColor),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  event.title,
-                  style: theme.textTheme.titleSmall,
-                ),
+                Text(event.title, style: theme.textTheme.titleSmall),
                 const SizedBox(height: 4),
-                Text(
-                  event.description,
-                  style: theme.textTheme.bodyMedium,
-                ),
+                Text(event.description, style: theme.textTheme.bodyMedium),
                 const SizedBox(height: 6),
                 Text(
                   event.dateLabel,

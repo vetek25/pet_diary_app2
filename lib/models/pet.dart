@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 import "../l10n/app_localizations.dart";
 
@@ -59,6 +59,41 @@ class Pet {
     );
   }
 
+  Pet copyWith({
+    String? name,
+    String? species,
+    String? breed,
+    String? genderKey,
+    DateTime? birthDate,
+    double? weight,
+    String? microchip,
+    Color? accentColor,
+    List<String>? tagKeys,
+    String? avatarUrl,
+    String? notesKey,
+    String? notes,
+    String? nextEventKey,
+    DateTime? nextEventDate,
+  }) {
+    return Pet(
+      id: id,
+      name: name ?? this.name,
+      species: species ?? this.species,
+      breed: breed ?? this.breed,
+      genderKey: genderKey ?? this.genderKey,
+      birthDate: birthDate ?? this.birthDate,
+      weight: weight ?? this.weight,
+      microchip: microchip ?? this.microchip,
+      accentColor: accentColor ?? this.accentColor,
+      tagKeys: tagKeys ?? this.tagKeys,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      notesKey: notesKey ?? this.notesKey,
+      notes: notes ?? this.notes,
+      nextEventKey: nextEventKey ?? this.nextEventKey,
+      nextEventDate: nextEventDate ?? this.nextEventDate,
+    );
+  }
+
   Map<String, dynamic> toStorage() {
     return {
       "id": id,
@@ -79,7 +114,8 @@ class Pet {
     };
   }
 
-  String weightLabel(AppLocalizations l10n) => "${weight.toStringAsFixed(1)} ${l10n.unitKilograms}";
+  String weightLabel(AppLocalizations l10n) =>
+      "${weight.toStringAsFixed(1)} ${l10n.unitKilograms}";
 
   String ageLabel(AppLocalizations l10n) {
     final now = DateTime.now();
@@ -109,7 +145,8 @@ class Pet {
 
   String get speciesLabel => "$species - $breed";
 
-  String formattedBirthDate(AppLocalizations l10n) => l10n.formatFullDate(birthDate);
+  String formattedBirthDate(AppLocalizations l10n) =>
+      l10n.formatFullDate(birthDate);
 
   String? note(AppLocalizations l10n) {
     if (notes != null && notes!.isNotEmpty) {

@@ -1,10 +1,12 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 
 import "../l10n/app_localizations.dart";
 import "../models/pet.dart";
 import "../services/pet_repository.dart";
 import "../services/reminder_repository.dart";
+import "../services/document_repository.dart";
+import "../services/document_repository.dart";
 import "reminder_form_sheet.dart";
 
 class AddPetScreen extends StatefulWidget {
@@ -89,7 +91,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
       ..clear()
       ..addAll(pet.tagKeys.isEmpty ? ["indoor"] : pet.tagKeys);
     _selectedAccent = pet.accentColor;
-    _accentIndex = _accentPreviewColors.indexWhere((color) => color.value == pet.accentColor.value);
+    _accentIndex = _accentPreviewColors.indexWhere(
+      (color) => color.value == pet.accentColor.value,
+    );
     if (_accentIndex < 0) {
       _accentIndex = 0;
     }
@@ -132,13 +136,17 @@ class _AddPetScreenState extends State<AddPetScreen> {
       if (!(_formKey.currentState?.validate() ?? false)) {
         return;
       }
-      final weight = double.tryParse(_weightController.text.replaceAll(',', '.'));
+      final weight = double.tryParse(
+        _weightController.text.replaceAll(',', '.'),
+      );
       if (weight == null) {
         _showMessage(l10n.addPetWeightRequired);
         return;
       }
 
-      final accentColor = _selectedAccent ?? _accentPreviewColors[_accentIndex % _accentPreviewColors.length];
+      final accentColor =
+          _selectedAccent ??
+          _accentPreviewColors[_accentIndex % _accentPreviewColors.length];
       final pet = Pet(
         id: _editingPet?.id ?? "pet_${DateTime.now().millisecondsSinceEpoch}",
         name: _nameController.text.trim(),
@@ -150,7 +158,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
         microchip: _microchipController.text.trim(),
         accentColor: accentColor,
         tagKeys: _selectedTags.toList(),
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
         avatarUrl: _editingPet?.avatarUrl,
         notesKey: _editingPet?.notesKey,
         nextEventKey: _editingPet?.nextEventKey,
@@ -192,6 +202,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
       );
       if (confirmed == true) {
         await context.read<ReminderRepository>().deleteForPet(_editingPet!.id);
+        await context.read<DocumentRepository>().deleteForPet(_editingPet!.id);
         await repo.removePet(_editingPet!.id);
         if (mounted) {
           Navigator.pop(context);
@@ -222,20 +233,26 @@ class _AddPetScreenState extends State<AddPetScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(hintText: "Luna"),
-                validator: (value) => value == null || value.trim().isEmpty ? l10n.addPetNameRequired : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? l10n.addPetNameRequired
+                    : null,
               ),
               const SizedBox(height: 20),
               _sectionLabel(theme.textTheme, l10n.addPetSpeciesLabel),
               TextFormField(
                 controller: _speciesController,
                 decoration: const InputDecoration(hintText: "Cat"),
-                validator: (value) => value == null || value.trim().isEmpty ? l10n.addPetSpeciesRequired : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? l10n.addPetSpeciesRequired
+                    : null,
               ),
               const SizedBox(height: 20),
               _sectionLabel(theme.textTheme, l10n.addPetBreedLabel),
               TextFormField(
                 controller: _breedController,
-                decoration: const InputDecoration(hintText: "British Shorthair"),
+                decoration: const InputDecoration(
+                  hintText: "British Shorthair",
+                ),
               ),
               const SizedBox(height: 20),
               _sectionLabel(theme.textTheme, l10n.addPetGenderLabel),
@@ -270,15 +287,21 @@ class _AddPetScreenState extends State<AddPetScreen> {
               _sectionLabel(theme.textTheme, l10n.addPetWeightLabel),
               TextFormField(
                 controller: _weightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(hintText: l10n.addPetWeightHint),
-                validator: (value) => value == null || value.trim().isEmpty ? l10n.addPetWeightRequired : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? l10n.addPetWeightRequired
+                    : null,
               ),
               const SizedBox(height: 20),
               _sectionLabel(theme.textTheme, l10n.addPetMicrochipLabel),
               TextFormField(
                 controller: _microchipController,
-                decoration: const InputDecoration(hintText: "985 112 000 123 456"),
+                decoration: const InputDecoration(
+                  hintText: "985 112 000 123 456",
+                ),
               ),
               const SizedBox(height: 20),
               _sectionLabel(theme.textTheme, l10n.addPetNotesLabel),
@@ -319,7 +342,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 children: List.generate(_accentPreviewColors.length, (index) {
                   final color = _accentPreviewColors[index];
                   final isSelected =
-                      (_selectedAccent != null && _selectedAccent!.value == color.value) || _accentIndex == index;
+                      (_selectedAccent != null &&
+                          _selectedAccent!.value == color.value) ||
+                      _accentIndex == index;
                   return GestureDetector(
                     onTap: () => setState(() {
                       _selectedAccent = color;
@@ -331,13 +356,13 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: isSelected ? color : Colors.transparent, width: 2),
+                        border: Border.all(
+                          color: isSelected ? color : Colors.transparent,
+                          width: 2,
+                        ),
                       ),
                       alignment: Alignment.center,
-                      child: CircleAvatar(
-                        backgroundColor: color,
-                        radius: 12,
-                      ),
+                      child: CircleAvatar(backgroundColor: color, radius: 12),
                     ),
                   );
                 }),
@@ -355,7 +380,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: submit,
-                      child: Text(_isEditing ? l10n.saveChanges : l10n.addPetSave),
+                      child: Text(
+                        _isEditing ? l10n.saveChanges : l10n.addPetSave,
+                      ),
                     ),
                   ),
                 ],
@@ -378,9 +405,9 @@ class _AddPetScreenState extends State<AddPetScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -389,6 +416,3 @@ class AddPetScreenArgs {
 
   final String? petId;
 }
-
-
-

@@ -6,6 +6,10 @@ import "package:hive/hive.dart";
 import "package:pet_diary_app/main.dart";
 import "package:pet_diary_app/services/pet_repository.dart";
 import "package:pet_diary_app/services/reminder_repository.dart";
+import "package:pet_diary_app/services/weight_repository.dart";
+import "package:pet_diary_app/services/document_repository.dart";
+import "package:pet_diary_app/services/notification_settings_repository.dart";
+import "package:pet_diary_app/services/notification_service.dart";
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -27,11 +31,22 @@ void main() {
   testWidgets("Login screen renders welcoming UI", (tester) async {
     final petRepository = PetRepository();
     final reminderRepository = ReminderRepository();
+    final weightRepository = WeightRepository();
+    final documentRepository = DocumentRepository();
+    final settingsRepository = NotificationSettingsRepository();
+    final notificationService = NotificationService(
+      reminders: reminderRepository,
+      settings: settingsRepository,
+    );
 
     await tester.pumpWidget(
       PetDiaryApp(
         petRepository: petRepository,
         reminderRepository: reminderRepository,
+        weightRepository: weightRepository,
+        documentRepository: documentRepository,
+        settingsRepository: settingsRepository,
+        notificationService: notificationService,
       ),
     );
 

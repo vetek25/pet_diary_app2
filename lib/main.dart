@@ -1,21 +1,22 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:flutter_localizations/flutter_localizations.dart";
 import "package:hive_flutter/hive_flutter.dart";
 import "package:provider/provider.dart";
 
 import "l10n/app_localizations.dart";
-import "services/notification_service.dart";
-import "services/notification_settings_repository.dart";
 import "screens/add_pet_screen.dart";
 import "screens/dashboard_screen.dart";
+import "screens/documents_screen.dart";
 import "screens/login_screen.dart";
+import "screens/notification_settings_screen.dart";
 import "screens/pet_card_screen.dart";
 import "screens/splash_screen.dart";
+import "services/document_repository.dart";
+import "services/notification_service.dart";
+import "services/notification_settings_repository.dart";
 import "services/pet_repository.dart";
 import "services/reminder_repository.dart";
-import "services/notification_settings_repository.dart";
-import "services/notification_service.dart";
-import "screens/notification_settings_screen.dart";
+import "services/weight_repository.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,8 @@ Future<void> main() async {
 
   final petRepository = PetRepository();
   final reminderRepository = ReminderRepository();
+  final weightRepository = WeightRepository();
+  final documentRepository = DocumentRepository();
   final settingsRepository = NotificationSettingsRepository();
   final notificationService = NotificationService(
     reminders: reminderRepository,
@@ -33,6 +36,8 @@ Future<void> main() async {
     PetDiaryApp(
       petRepository: petRepository,
       reminderRepository: reminderRepository,
+      weightRepository: weightRepository,
+      documentRepository: documentRepository,
       settingsRepository: settingsRepository,
       notificationService: notificationService,
     ),
@@ -44,12 +49,16 @@ class PetDiaryApp extends StatelessWidget {
     super.key,
     required this.petRepository,
     required this.reminderRepository,
+    required this.weightRepository,
+    required this.documentRepository,
     required this.settingsRepository,
     required this.notificationService,
   });
 
   final PetRepository petRepository;
   final ReminderRepository reminderRepository;
+  final WeightRepository weightRepository;
+  final DocumentRepository documentRepository;
   final NotificationSettingsRepository settingsRepository;
   final NotificationService notificationService;
 
@@ -58,24 +67,35 @@ class PetDiaryApp extends StatelessWidget {
     const primaryTextColor = Color(0xFF1E3D59);
     const secondaryTextColor = Color(0xFF425466);
 
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF6CC4A1),
-      brightness: Brightness.light,
-    ).copyWith(
-      secondary: const Color(0xFF8AB6F9),
-      tertiary: const Color(0xFFF5A8C7),
-      background: const Color(0xFFF4F7F8),
-      surface: Colors.white,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF6CC4A1),
+          brightness: Brightness.light,
+        ).copyWith(
+          secondary: const Color(0xFF8AB6F9),
+          tertiary: const Color(0xFFF5A8C7),
+          background: const Color(0xFFF4F7F8),
+          surface: Colors.white,
+        );
 
     final baseTextTheme = ThemeData.light().textTheme;
 
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<PetRepository>.value(value: petRepository),
-        ChangeNotifierProvider<ReminderRepository>.value(value: reminderRepository),
-        ChangeNotifierProvider<NotificationSettingsRepository>.value(value: settingsRepository),
-        ChangeNotifierProvider<NotificationService>.value(value: notificationService),
+        ChangeNotifierProvider<ReminderRepository>.value(
+          value: reminderRepository,
+        ),
+        ChangeNotifierProvider<WeightRepository>.value(value: weightRepository),
+        ChangeNotifierProvider<DocumentRepository>.value(
+          value: documentRepository,
+        ),
+        ChangeNotifierProvider<NotificationSettingsRepository>.value(
+          value: settingsRepository,
+        ),
+        ChangeNotifierProvider<NotificationService>.value(
+          value: notificationService,
+        ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -155,10 +175,11 @@ class PetDiaryApp extends StatelessWidget {
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
             fillColor: Colors.white,
-            hintStyle: TextStyle(
-              color: secondaryTextColor.withOpacity(0.55),
+            hintStyle: TextStyle(color: secondaryTextColor.withOpacity(0.55)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(22),
               borderSide: BorderSide.none,
@@ -169,9 +190,11 @@ class PetDiaryApp extends StatelessWidget {
         routes: {
           LoginScreen.routeName: (context) => const LoginScreen(),
           DashboardScreen.routeName: (context) => const DashboardScreen(),
+          DocumentsScreen.routeName: (context) => const DocumentsScreen(),
           PetCardScreen.routeName: (context) => const PetCardScreen(),
           AddPetScreen.routeName: (context) {
-            final args = ModalRoute.of(context)?.settings.arguments as AddPetScreenArgs?;
+            final args =
+                ModalRoute.of(context)?.settings.arguments as AddPetScreenArgs?;
             return AddPetScreen(petId: args?.petId);
           },
         },

@@ -1,9 +1,11 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 
 import "../l10n/app_localizations.dart";
 import "../services/pet_repository.dart";
 import "../services/reminder_repository.dart";
+import "../services/document_repository.dart";
+import "../services/weight_repository.dart";
 import "../services/notification_settings_repository.dart";
 import "../services/notification_service.dart";
 import "login_screen.dart";
@@ -27,21 +29,34 @@ class _SplashGateState extends State<SplashGate> {
     }
     final petRepository = context.read<PetRepository>();
     final reminderRepository = context.read<ReminderRepository>();
+    final documentRepository = context.read<DocumentRepository>();
+    final weightRepository = context.read<WeightRepository>();
     final settingsRepository = context.read<NotificationSettingsRepository>();
     final notificationService = context.read<NotificationService>();
-    _loadingFuture = _initialize(petRepository, reminderRepository, settingsRepository, notificationService);
+    _loadingFuture = _initialize(
+      petRepository,
+      reminderRepository,
+      documentRepository,
+      weightRepository,
+      settingsRepository,
+      notificationService,
+    );
     _initialized = true;
   }
 
   Future<void> _initialize(
     PetRepository petRepository,
     ReminderRepository reminderRepository,
+    DocumentRepository documentRepository,
+    WeightRepository weightRepository,
     NotificationSettingsRepository settingsRepository,
     NotificationService notificationService,
   ) async {
     await Future.wait([
       petRepository.init(),
       reminderRepository.init(),
+      documentRepository.init(),
+      weightRepository.init(),
       settingsRepository.init(),
     ]);
     await notificationService.init();
@@ -166,7 +181,10 @@ class _AnimalComposition extends StatelessWidget {
             height: 240,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [palette[0].withOpacity(0.35), palette[1].withOpacity(0.3)],
+                colors: [
+                  palette[0].withOpacity(0.35),
+                  palette[1].withOpacity(0.3),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -180,16 +198,8 @@ class _AnimalComposition extends StatelessWidget {
               ],
             ),
           ),
-          const Positioned(
-            left: 46,
-            bottom: 56,
-            child: _DogFigure(),
-          ),
-          const Positioned(
-            right: 40,
-            bottom: 54,
-            child: _CatFigure(),
-          ),
+          const Positioned(left: 46, bottom: 56, child: _DogFigure()),
+          const Positioned(right: 40, bottom: 54, child: _CatFigure()),
           const _FloatingItem(
             icon: Icons.ramen_dining,
             top: 10,

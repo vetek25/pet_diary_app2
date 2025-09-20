@@ -105,11 +105,14 @@
 6. Pet profile shows full details with synced reminders list and timeline.
 
 ## 6. Remaining TODO / Future Work Considerations
-- Implement actual authentication & plan gating.
-- Hook quick-action placeholders (documents, clinic visits) to real features.
-- Build out timeline events/documents storage.
-- Integrate real notification scheduling (push/local).
-- Harden tests for reminders and persistence.
+- Build document storage and attachments for pets (photos, PDFs, medical records).
+- Add shared access/invitations for family members and partner clinics.
+- Expand the timeline into a fully categorized activity feed.
+- Finish quick-action flows (visit log, document upload, extended reminder actions).
+- Ship reliable push/local notifications with background scheduling.
+- Implement authentication and subscription gating.
+- Refresh the UI (dark theme, responsive layout tweaks).
+- Harden automated tests and repository coverage.
 
 ## 7. Notifications & Reminder Enhancements
 - Added `NotificationSettingsRepository` to persist notification preferences (enable/disable, silent mode, email duplication, channel toggles) via Hive.
